@@ -1,0 +1,27 @@
+{
+  "repo_path": {
+    "app":    "/home/www/fin_app/aver24_db_10",
+    "sa":     "/home/www/fin_sa/aver24_db_10",
+    "sell":   "/home/www/fin_sell/aver24_db_10",
+    "assets": "/home/www/fin_assets/aver24_db_10",
+    "api":    "/home/www/fin_api/aver24_db_10",
+    "apisa":  "/home/www/fin_apisa/aver24_db_10",
+    "trans":  "/home/www/fin_trans/aver24_db_10"
+  },
+  "domains": [
+    {
+      "root": "domain1.com",
+      "web":     ["domain1.com", "w.domain1.com", "w1.domain1.com", "w2.domain1.com", "assets.domain1.com", "se.domain1.com"],
+      "api":     { "domain": "api.domain1.com",   "port": 8081 },
+      "apisell": { "domain": "apise.domain1.com", "port": 8082 }
+    },
+    {
+      "root": "domain2.com",
+      "sa":    "pp.domain2.com",
+      "apisa": { "domain": "apisa.domain2.com", "port": 8083 },
+      "trans": { "domain": "trans.domain2.com", "port": 8084 },
+      "noti":  { "domain": "dm12.domain2.com",  "port": 8085 },
+      "bank":  { "domain": "tm-true.domain2.com","port": 8086 }
+    }
+  ]
+}
