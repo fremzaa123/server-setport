@@ -1,13 +1,14 @@
 {
   "server_type": "hestia",
   "repo_path": {
-    "app":    "/home/www/fin_app/aver24_db_888",
-    "sa":     "/home/www/fin_sa/aver24_db_888",
-    "sell":   "/home/www/fin_sell/aver24_db_888",
-    "assets": "/home/www/fin_assets/aver24_db_888",
-    "api":    "/home/www/fin_api/aver24_db_888",
-    "apisa":  "/home/www/fin_apisa/aver24_db_888",
-    "trans":  "/home/www/fin_trans/aver24_db_888"
+    "app":     "/home/www/fin_app/aver24_db_888",
+    "sa":      "/home/www/fin_sa/aver24_db_888",
+    "sell":    "/home/www/fin_sell/aver24_db_888",
+    "assets":  "/home/www/fin_assets/aver24_db_888",
+    "api":     "/home/www/fin_api/aver24_db_888",
+    "apisa":   "/home/www/fin_apisa/aver24_db_888",
+    "apisell": "/home/www/fin_apisell/aver24_db_888",
+    "trans":   "/home/www/fin_trans/aver24_db_888"
   },
   "domains": [
     {
