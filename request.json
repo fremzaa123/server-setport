@@ -1,5 +1,4 @@
 {
-  "server_type": "hestia",
   "repo_path": {
     "app":     "/home/www/fin_app/aver24_db_888",
     "sa":      "/home/www/fin_sa/aver24_db_888",

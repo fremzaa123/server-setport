@@ -212,6 +212,33 @@ def process_domain(domain_obj, repo_path, key_map, logs):
         else:
             process_react_domain(key, value, repo_path, key_map, logs)
 
+# ---- format parser ----
+
+def parse_project_format(data):
+    domain = data.get("domain", {})
+    port = data.get("port", {})
+    base = domain.get("base", "")
+
+    api_keys = {"api", "apisa", "noti", "trans", "apisell"}
+    react_keys = {"sa", "sell", "assets"}
+
+    web_list = [base] + domain.get("web", []) if base else domain.get("web", [])
+
+    domain_obj = {"root": base, "web": web_list}
+
+    for key in api_keys:
+        domains_list = domain.get(key, [])
+        p = port.get(key)
+        if domains_list and p:
+            domain_obj[key] = {"domain": domains_list[0], "port": p}
+
+    for key in react_keys:
+        domains_list = domain.get(key, [])
+        if domains_list:
+            domain_obj[key] = domains_list[0] if len(domains_list) == 1 else domains_list
+
+    return [domain_obj]
+
 # ---- main ----
 
 def main():
@@ -227,8 +254,14 @@ def main():
         SERVER["type"] = data["server_type"]
 
     repo_path = data.get("repo_path", {})
+
+    if "domain" in data and "domains" not in data:
+        domains = parse_project_format(data)
+    else:
+        domains = data.get("domains", [])
+
     logs = []
-    for domain_obj in data.get("domains", []):
+    for domain_obj in domains:
         process_domain(domain_obj, repo_path, KEY_MAP, logs)
     logs.append(nginx_test_reload())
 

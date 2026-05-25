@@ -3,13 +3,26 @@ set -e
 
 cd "$(dirname "$0")"
 
+# ---- parse flags ----
+JSON_FILE="request.json"
+ENV_FILE="/home/fin/.env.staging_db"
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --file|--nginx) JSON_FILE="$2"; shift 2 ;;
+    --env)  ENV_FILE="$2";  shift 2 ;;
+    *) echo "ERROR: unknown flag $1"; exit 1 ;;
+  esac
+done
+
+# ---- checks ----
 if ! command -v python3 &>/dev/null; then
   echo "ERROR: python3 not found — install it first"
   exit 1
 fi
 
-if [ -f .env ]; then
-  set -a && source .env && set +a
+if [ -f "$ENV_FILE" ]; then
+  set -a && source "$ENV_FILE" && set +a
 fi
 
 if [ -z "$SERVER_URL" ] || [ -z "$SERVER_ADMIN_USER" ] || [ -z "$SERVER_PASSWORD" ]; then
@@ -33,10 +46,10 @@ if [ ! -w "$CONF_DIR" ]; then
   exit 1
 fi
 
+# ---- run ----
 if [ ! -d ".venv" ]; then
   python3 -m venv .venv
 fi
 
 .venv/bin/pip install -q -r requirements.txt
-
-.venv/bin/python main.py "${1:-request.json}"
+.venv/bin/python main.py "$JSON_FILE"
