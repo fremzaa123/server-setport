@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"
 
 # ---- parse flags ----
-JSON_FILE="request.json"
+JSON_FILE="project.jsonc"
 ENV_FILE="/home/fin/.env.staging_db"
 
 while [[ $# -gt 0 ]]; do
@@ -52,4 +52,4 @@ if [ ! -d ".venv" ]; then
 fi
 
 .venv/bin/pip install -q -r requirements.txt
-.venv/bin/python main.py "$JSON_FILE"
+.venv/bin/python nginx-setport.py "$JSON_FILE"

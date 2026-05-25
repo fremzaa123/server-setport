@@ -1,0 +1,24 @@
+{
+  "repo_path": {
+    "app":     "/home/www/fin_app/staging_db_33",
+    "sa":      "/home/www/fin_sa/staging_db_33",
+    "sell":    "/home/www/fin_sell/staging_db_33",
+    "assets":  "/home/www/fin_assets/staging_db_33",
+    "api":     "/home/www/fin_api/staging_db_33",
+    "apisa":   "/home/www/fin_apisa/staging_db_33",
+    "trans":   "/home/www/fin_trans/staging_db_33"
+  },
+  "domains": [
+    {
+      "root":    "myapp.com",
+      "web":     ["myapp.com", "w.myapp.com", "w1.myapp.com", "w2.myapp.com", "assets-myapp.example.com"],
+      "sa":      "sa-myapp.example.com",
+      "sell":    "sell-myapp.example.com",
+      "api":     { "domain": "api-myapp.example.com",     "port": 3000 },
+      "apisa":   { "domain": "apisa-myapp.example.com",   "port": 3001 },
+      "noti":    { "domain": "ucn.example.com",           "port": 3002 },
+      "trans":   { "domain": "trans-myapp.example.com",   "port": 3005 },
+      "apisell": { "domain": "apisell-myapp.example.com", "port": 3001 }
+    }
+  ]
+}
