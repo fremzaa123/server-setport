@@ -40,6 +40,9 @@ def is_vesta():
 def log_entry(step, ok, message):
     return {"step": step, "ok": ok, "message": message}
 
+def section(name):
+    return log_entry(f"=== {name} ===", True, "")
+
 def local_run(command):
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
     return result.stdout.strip(), result.stderr.strip()
@@ -138,8 +141,7 @@ def set_nginx_conf2_root(domain, fs_path):
     existing, err = local_read(path)
     if not err and existing.strip() == root_line:
         return log_entry(step, True, "ตั้งค่าไว้แล้ว")
-    new_content = root_line
-    write_err = local_write(path, new_content)
+    write_err = local_write(path, root_line)
     return log_entry(step, not write_err, "เขียนไฟล์สำเร็จ" if not write_err else write_err)
 
 def resolve_repo_path(domain, root_domain, repo_path, key_map):
@@ -153,9 +155,8 @@ def ensure_nginx_conf2_for_web(root_domain, web_domains, repo_path, key_map):
     logs = []
     for d in web_domains:
         step = f"ensure base nginx.conf_2 {d}"
-        path = nginx_conf2_path(d)
         fs_path = resolve_repo_path(d, root_domain, repo_path, key_map)
-        existing, err = local_read(path)
+        existing, err = local_read(nginx_conf2_path(d))
         if fs_path:
             root_line = f"root {fs_path};"
             if not err and existing.strip() == root_line:
@@ -167,50 +168,50 @@ def ensure_nginx_conf2_for_web(root_domain, web_domains, repo_path, key_map):
                 logs.append(log_entry(step, True, "ตั้งค่าไว้แล้ว"))
                 continue
             new_content = ""
-        write_err = local_write(path, new_content)
+        write_err = local_write(nginx_conf2_path(d), new_content)
         logs.append(log_entry(step, not write_err, "เขียนไฟล์สำเร็จ" if not write_err else write_err))
     return logs
 
 # ---- domain processing ----
 
-def process_web_domains(web_list, root_domain, repo_path, key_map, logs):
+def process_web_domains(web_list, root_domain, repo_path, key_map, hestia_logs, nginx_logs):
     if isinstance(web_list, str):
         web_list = [web_list]
     for d in web_list:
-        logs.append(add_web_domain(d))
-        if logs[-1]["ok"] and not is_vesta():
-            logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
+        hestia_logs.append(add_web_domain(d))
+        if hestia_logs[-1]["ok"] and not is_vesta():
+            hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
     if not is_vesta() and web_list and root_domain:
-        logs.extend(ensure_nginx_conf2_for_web(root_domain, web_list, repo_path, key_map))
+        nginx_logs.extend(ensure_nginx_conf2_for_web(root_domain, web_list, repo_path, key_map))
 
-def process_api_domain(value, logs):
+def process_api_domain(value, hestia_logs, nginx_logs):
     d, port = value["domain"], value["port"]
-    logs.append(add_web_domain(d))
-    if logs[-1]["ok"] and not is_vesta():
-        logs.append(set_proxy_template(d, "my_api_template"))
-    logs.append(set_nginx_port(d, port))
+    hestia_logs.append(add_web_domain(d))
+    if hestia_logs[-1]["ok"] and not is_vesta():
+        hestia_logs.append(set_proxy_template(d, "my_api_template"))
+    nginx_logs.append(set_nginx_port(d, port))
 
-def process_react_domain(key, value, repo_path, key_map, logs):
+def process_react_domain(key, value, repo_path, key_map, hestia_logs, nginx_logs):
     domains_list = value if isinstance(value, list) else [value]
     fs_path = repo_path.get(key_map.get(key, key), "")
     for d in domains_list:
-        logs.append(add_web_domain(d))
-        if logs[-1]["ok"] and not is_vesta():
-            logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
+        hestia_logs.append(add_web_domain(d))
+        if hestia_logs[-1]["ok"] and not is_vesta():
+            hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
         if fs_path and not is_vesta():
-            logs.append(set_nginx_conf2_root(d, fs_path))
+            nginx_logs.append(set_nginx_conf2_root(d, fs_path))
 
-def process_domain(domain_obj, repo_path, key_map, logs):
+def process_domain(domain_obj, repo_path, key_map, hestia_logs, nginx_logs):
     root_domain = domain_obj.get("root", "")
-    process_web_domains(domain_obj.get("web", []), root_domain, repo_path, key_map, logs)
+    process_web_domains(domain_obj.get("web", []), root_domain, repo_path, key_map, hestia_logs, nginx_logs)
     skip_keys = {"root", "web"}
     for key, value in domain_obj.items():
         if key in skip_keys:
             continue
         if isinstance(value, dict) and "port" in value:
-            process_api_domain(value, logs)
+            process_api_domain(value, hestia_logs, nginx_logs)
         else:
-            process_react_domain(key, value, repo_path, key_map, logs)
+            process_react_domain(key, value, repo_path, key_map, hestia_logs, nginx_logs)
 
 # ---- format parser ----
 
@@ -223,7 +224,6 @@ def parse_project_format(data):
     react_keys = {"sa", "sell", "assets"}
 
     web_list = [base] + domain.get("web", []) if base else domain.get("web", [])
-
     domain_obj = {"root": base, "web": web_list}
 
     for key in api_keys:
@@ -242,7 +242,7 @@ def parse_project_format(data):
 # ---- main ----
 
 def main():
-    json_file = sys.argv[1] if len(sys.argv) > 1 else "request.json"
+    json_file = sys.argv[1] if len(sys.argv) > 1 else "project.jsonc"
     if not os.path.exists(json_file):
         print(json.dumps({"ok": False, "error": f"{json_file} not found"}))
         sys.exit(1)
@@ -260,10 +260,19 @@ def main():
     else:
         domains = data.get("domains", [])
 
-    logs = []
+    hestia_logs = []
+    nginx_logs = []
+
     for domain_obj in domains:
-        process_domain(domain_obj, repo_path, KEY_MAP, logs)
-    logs.append(nginx_test_reload())
+        process_domain(domain_obj, repo_path, KEY_MAP, hestia_logs, nginx_logs)
+
+    reload_log = nginx_test_reload()
+
+    logs = (
+        [section("hestia")] + hestia_logs +
+        [section("nginx conf")] + nginx_logs +
+        [section("nginx reload"), reload_log]
+    )
 
     all_ok = all(e["ok"] for e in logs)
     print(json.dumps({"ok": all_ok, "log": logs}, ensure_ascii=False, indent=2))
