@@ -32,7 +32,7 @@ if [ -z "$ENV_FILE" ]; then
     echo "ERROR: db_name not found in $JSON_FILE"
     exit 1
   fi
-  ENV_FILE="/home/fin/.env.${DB_NAME}"
+  ENV_FILE="/home/www/manager/fin-source/env/.env.${DB_NAME}"
 fi
 
 if [ -f "$ENV_FILE" ]; then
