@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 
 # ---- parse flags ----
 JSON_FILE=""
-ENV_FILE="/home/fin/.env.staging_db"
+ENV_FILE=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -24,6 +24,15 @@ fi
 if ! command -v python3 &>/dev/null; then
   echo "ERROR: python3 not found — install it first"
   exit 1
+fi
+
+if [ -z "$ENV_FILE" ]; then
+  DB_NAME=$(python3 -c "import json; d=json.load(open('$JSON_FILE')); print(d.get('db_name',''))" 2>/dev/null)
+  if [ -z "$DB_NAME" ]; then
+    echo "ERROR: db_name not found in $JSON_FILE"
+    exit 1
+  fi
+  ENV_FILE="/home/fin/.env.${DB_NAME}"
 fi
 
 if [ -f "$ENV_FILE" ]; then
