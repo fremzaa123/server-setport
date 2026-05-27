@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"
 
 # ---- parse flags ----
-JSON_FILE="project.jsonc"
+JSON_FILE=""
 ENV_FILE="/home/fin/.env.staging_db"
 
 while [[ $# -gt 0 ]]; do
@@ -14,6 +14,11 @@ while [[ $# -gt 0 ]]; do
     *) echo "ERROR: unknown flag $1"; exit 1 ;;
   esac
 done
+
+if [ -z "$JSON_FILE" ]; then
+  echo "ERROR: --nginx <path> required"
+  exit 1
+fi
 
 # ---- checks ----
 if ! command -v python3 &>/dev/null; then
@@ -25,8 +30,8 @@ if [ -f "$ENV_FILE" ]; then
   set -a && source "$ENV_FILE" && set +a
 fi
 
-if [ -z "$SERVER_URL" ] || [ -z "$SERVER_ADMIN_USER" ] || [ -z "$SERVER_PASSWORD" ]; then
-  echo "ERROR: missing env vars — SERVER_URL, SERVER_ADMIN_USER, SERVER_PASSWORD required"
+if [ -z "$HESTIA_URL" ] || [ -z "$HESTIA_ADMIN_USER" ] || [ -z "$HESTIA_PASSWORD" ]; then
+  echo "ERROR: missing env vars — HESTIA_URL, HESTIA_ADMIN_USER, HESTIA_PASSWORD required"
   exit 1
 fi
 
@@ -35,7 +40,7 @@ if ! command -v nginx &>/dev/null; then
   exit 1
 fi
 
-CONF_DIR="/home/${SERVER_ADMIN_USER}/conf/web"
+CONF_DIR="/home/${HESTIA_ADMIN_USER}/conf/web"
 if [ ! -d "$CONF_DIR" ]; then
   echo "ERROR: conf dir not found: $CONF_DIR"
   exit 1
@@ -47,9 +52,4 @@ if [ ! -w "$CONF_DIR" ]; then
 fi
 
 # ---- run ----
-if [ ! -d ".venv" ]; then
-  python3 -m venv .venv
-fi
-
-.venv/bin/pip install -q -r requirements.txt
 .venv/bin/python nginx-setport.py "$JSON_FILE"

@@ -1,133 +1,152 @@
 # server-setport
 
-Python script สำหรับ setup domain บน Hestia/Vesta server — เพิ่ม web domain, set proxy template, เขียน nginx.conf_2
+Python script สำหรับ setup domain บน Hestia server — เพิ่ม web domain, set proxy template, เขียน nginx.conf_2
 
 ## Requirements
 
-- Python 3.x
+- Python 3.7+
 - nginx (ติดตั้งบน server)
-- Hestia หรือ Vesta control panel
+- Hestia control panel
 
 ---
 
-## ติดตั้งบน Server
+## การติดตั้ง (ทำครั้งเดียว)
 
-### 1. Clone หรือ pull จาก Git
-
-```bash
-git clone <repo-url> /opt/server-setport
-cd /opt/server-setport
-```
-
-หรือถ้า clone ไว้แล้ว:
+### 1. โหลดโปรเจ็กต์ลง server
 
 ```bash
-cd /opt/server-setport && git pull
+git clone <repo-url> /home/fin/server-setport
 ```
 
-### 2. สร้างไฟล์ .env
+### 2. ติดตั้ง Python modules
 
 ```bash
-cp .env.example .env
-nano .env
+bash /home/fin/server-setport/ins-module.sh
 ```
 
-กรอกค่าให้ครบ:
+สร้าง `.venv` และ install dependencies ให้พร้อม
+
+### 3. สร้างไฟล์ .env
 
 ```env
-SERVER_URL=https://YOUR_SERVER_IP:8083
-SERVER_ADMIN_USER=admin
-SERVER_PASSWORD=your_panel_password
+HESTIA_URL='https://YOUR_SERVER_IP:8083'
+HESTIA_ADMIN_USER='admin'
+HESTIA_PASSWORD='your_panel_password'
 ```
 
 ---
 
 ## วิธีรัน
 
+ตัวกลางยิงคำสั่ง:
+
 ```bash
-sh run.sh
+bash /home/fin/server-setport/nginx-setport.sh --nginx /path/to/project.jsonc
 ```
 
-หรือระบุ request file เอง:
+`--nginx` required — ถ้าไม่ส่งมาจะ error ออกเลย
+
+ระบุ env file อื่น (optional):
 
 ```bash
-sh run.sh my-request.json
+bash /home/fin/server-setport/nginx-setport.sh --nginx /path/to/project.jsonc --env /path/to/.env
 ```
 
 ---
 
-## โครงสร้าง request.json
+## โครงสร้าง project.jsonc
+
+รองรับ 2 format:
+
+### Format 1 — Project format
 
 ```json
 {
-  "server_type": "hestia",       // optional — default hestia, หรือ vesta
-  "repo_path": {                 // map key → path จริงบน server
-    "app":     "/home/www/fin_app/project",
-    "sa":      "/home/www/fin_sa/project",
-    "sell":    "/home/www/fin_sell/project",
-    "assets":  "/home/www/fin_assets/project",
-    "api":     "/home/www/fin_api/project",
-    "apisa":   "/home/www/fin_apisa/project",
-    "apisell": "/home/www/fin_apisell/project",
-    "trans":   "/home/www/fin_trans/project"
+  "domain": {
+    "base":    "domain.com",
+    "web":     ["w.domain.com", "w1.domain.com", "w2.domain.com"],
+    "assets":  ["assets.domain.com"],
+    "sa":      ["sa.domain.com"],
+    "sell":    ["sell.domain.com"],
+    "api":     ["api.domain.com"],
+    "apisa":   ["apisa.domain.com"],
+    "apisell": ["apisell.domain.com"],
+    "noti":    ["noti.domain.com"],
+    "trans":   ["trans.domain.com"]
   },
+  "port": {
+    "api":     8081,
+    "apisa":   8082,
+    "apisell": 8083,
+    "noti":    8084,
+    "trans":   8085
+  },
+  "repo_path": {
+    "app":    "/home/www/fin_app/project",
+    "sa":     "/home/www/fin_sa/project",
+    "sell":   "/home/www/fin_sell/project",
+    "assets": "/home/www/fin_assets/project",
+    "api":    "/home/www/fin_api/project",
+    "apisa":  "/home/www/fin_apisa/project",
+    "trans":  "/home/www/fin_trans/project"
+  },
+  "callback_url_init_nginx": "http://localhost:8000/api/v1/project/init/nginx/1"
+}
+```
+
+### Format 2 — Domains array format
+
+```json
+{
+  "repo_path": { ... },
   "domains": [
     {
-      "root": "domain.com",       // required — ใช้อ้างอิง subdomain เท่านั้น ไม่ได้ add เอง
-
-      // "web" → React subdomains
-      // script จะ: add domain + set template my_react_dupicate_page_template + เขียน root path ใน nginx.conf_2
-      // root path lookup จาก repo_path ผ่าน KEY_MAP ตาม subdomain prefix
-      //   domain.com       → repo_path["app"]
-      //   w.domain.com     → repo_path["app"]
-      //   w1.domain.com    → repo_path["app"]
-      //   w2.domain.com    → repo_path["app"]
-      //   se.domain.com    → repo_path["sell"]
-      //   assets.domain.com → repo_path["assets"]
-      //   sa.domain.com    → repo_path["sa"]
-      "web": ["domain.com", "w.domain.com", "w1.domain.com", "assets.domain.com", "se.domain.com"],
-
-      // key ใดก็ได้ + { domain, port } → API subdomain
-      // script จะ: add domain + set template my_api_template + เขียน proxy_pass port ใน nginx.conf_2
-      "api":     { "domain": "api.domain.com",     "port": 8081 },
-      "apisell": { "domain": "apise.domain.com",   "port": 8082 },
-      "apisa":   { "domain": "apisa.domain.com",   "port": 8083 },
-      "trans":   { "domain": "trans.domain.com",   "port": 8084 },
-      "noti":    { "domain": "noti.domain.com",    "port": 8085 }
+      "root": "domain.com",
+      "web":  ["domain.com", "w.domain.com", "assets.domain.com"],
+      "api":  { "domain": "api.domain.com", "port": 8081 },
+      "trans":{ "domain": "trans.domain.com", "port": 8082 }
     }
   ]
 }
 ```
 
-**`web`** — script จะ lookup `repo_path` ให้อัตโนมัติผ่าน `KEY_MAP` ตาม subdomain prefix เช่น `w` → `app`, `se` → `sell`, `assets` → `assets`
+---
 
-**API key ใดก็ได้** — ชื่อ key ไม่สำคัญ แค่ต้องมี `domain` และ `port`
+## Callback
+
+ถ้ามี `callback_url_init_nginx` ในไฟล์ — script จะ POST result กลับหลังเสร็จ:
+
+```json
+// success
+{ "success": true, "reason": "" }
+
+// fail
+{ "success": false, "reason": "hestia add api.domain.com: 404 Not Found | ..." }
+```
 
 ---
 
-## KEY_MAP (แก้ใน main.py)
+## KEY_MAP
 
-mapping ระหว่าง web subdomain prefix กับ `repo_path` key:
+mapping subdomain prefix → `repo_path` key:
 
-```python
-KEY_MAP = {
-    "w": "app", "w1": "app", "w2": "app",
-    "se": "sell",
-    "assets": "assets",
-    "sa": "sa",
-    ...
-}
 ```
-
-ถ้า prefix เปลี่ยน เช่น `w` → `m` แก้ทั้ง `KEY_MAP` และ `web` list ใน request.json
+w, w1, w2  → app
+se         → sell
+assets     → assets
+sa         → sa
+api        → api
+apisa      → apisa
+apisell    → apisell
+trans      → trans
+bank       → trans
+```
 
 ---
 
 ## อัปเดต Script
 
 ```bash
-cd /opt/server-setport
-git pull
+cd /home/fin/server-setport && git pull
+bash ins-module.sh
 ```
-
-`.env` และ `request.json` ไม่ถูก track โดย git — ไม่หายเมื่อ pull

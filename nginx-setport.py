@@ -12,9 +12,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # ---- config ----
 
 SERVER = {
-    "url":        os.environ.get("SERVER_URL", ""),
-    "admin_user": os.environ.get("SERVER_ADMIN_USER", ""),
-    "password":   os.environ.get("SERVER_PASSWORD", ""),
+    "url":        os.environ.get("HESTIA_URL", ""),
+    "admin_user": os.environ.get("HESTIA_ADMIN_USER", ""),
+    "password":   os.environ.get("HESTIA_PASSWORD", ""),
     "type":       os.environ.get("SERVER_TYPE", "hestia"),
 }
 
@@ -276,6 +276,17 @@ def main():
 
     all_ok = all(e["ok"] for e in logs)
     print(json.dumps({"ok": all_ok, "log": logs}, ensure_ascii=False, indent=2))
+
+    callback_url = data.get("callback_url_init_nginx")
+    if callback_url:
+        failed = [e for e in logs if not e["ok"]]
+        reason = " | ".join(f"{e['step']}: {e['message']}" for e in failed) if failed else ""
+        payload = {"success": all_ok, "reason": reason}
+        try:
+            requests.post(callback_url, json=payload, timeout=10)
+        except Exception:
+            pass
+
     if not all_ok:
         sys.exit(1)
 
