@@ -104,6 +104,13 @@ def nginx_conf2_path(domain):
 def vesta_conf_path(domain):
     return f"/home/{SERVER['admin_user']}/conf/web/{domain}.nginx.conf"
 
+def nginx_precheck():
+    out, err = local_run("nginx -t 2>&1")
+    combined = out + err
+    if "syntax is ok" in combined.lower() or "test is successful" in combined.lower():
+        return None
+    return combined
+
 def nginx_test_reload():
     step = "nginx test & reload"
     out, err = local_run("nginx -t 2>&1 && sudo systemctl restart nginx 2>&1")
@@ -177,18 +184,28 @@ def ensure_nginx_conf2_for_web(root_domain, web_domains, repo_path, key_map):
 def process_web_domains(web_list, root_domain, repo_path, key_map, hestia_logs, nginx_logs):
     if isinstance(web_list, str):
         web_list = [web_list]
+    ok_domains = []
     for d in web_list:
         hestia_logs.append(add_web_domain(d))
-        if hestia_logs[-1]["ok"] and not is_vesta():
+        if not hestia_logs[-1]["ok"]:
+            continue
+        if not is_vesta():
             hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
-    if not is_vesta() and web_list and root_domain:
-        nginx_logs.extend(ensure_nginx_conf2_for_web(root_domain, web_list, repo_path, key_map))
+            if not hestia_logs[-1]["ok"]:
+                continue
+        ok_domains.append(d)
+    if not is_vesta() and ok_domains and root_domain:
+        nginx_logs.extend(ensure_nginx_conf2_for_web(root_domain, ok_domains, repo_path, key_map))
 
 def process_api_domain(value, hestia_logs, nginx_logs):
     d, port = value["domain"], value["port"]
     hestia_logs.append(add_web_domain(d))
-    if hestia_logs[-1]["ok"] and not is_vesta():
+    if not hestia_logs[-1]["ok"]:
+        return
+    if not is_vesta():
         hestia_logs.append(set_proxy_template(d, "my_api_template"))
+        if not hestia_logs[-1]["ok"]:
+            return
     nginx_logs.append(set_nginx_port(d, port))
 
 def process_react_domain(key, value, repo_path, key_map, hestia_logs, nginx_logs):
@@ -196,8 +213,12 @@ def process_react_domain(key, value, repo_path, key_map, hestia_logs, nginx_logs
     fs_path = repo_path.get(key_map.get(key, key), "")
     for d in domains_list:
         hestia_logs.append(add_web_domain(d))
-        if hestia_logs[-1]["ok"] and not is_vesta():
+        if not hestia_logs[-1]["ok"]:
+            continue
+        if not is_vesta():
             hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
+            if not hestia_logs[-1]["ok"]:
+                continue
         if fs_path and not is_vesta():
             nginx_logs.append(set_nginx_conf2_root(d, fs_path))
 
@@ -259,6 +280,11 @@ def main():
         domains = parse_project_format(data)
     else:
         domains = data.get("domains", [])
+
+    pre_err = nginx_precheck()
+    if pre_err:
+        print(json.dumps({"ok": False, "error": f"nginx broken before start — fix first: {pre_err}"}))
+        sys.exit(1)
 
     hestia_logs = []
     nginx_logs = []
