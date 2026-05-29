@@ -52,6 +52,16 @@ bash /home/fin/server-setport/nginx-setport.sh --nginx /path/to/project.jsonc
 bash /home/fin/server-setport/nginx-setport.sh --nginx /path/to/project.jsonc --env /path/to/.env
 ```
 
+env file จะ auto-derive จาก `db_name` ใน JSON → `/home/www/manager/fin-source/env/.env.<db_name>`
+
+---
+
+## Safety behavior
+
+- **nginx pre-check** — รัน `nginx -t` ก่อนเริ่มทำอะไร ถ้า nginx พังอยู่แล้วจะหยุดทันทีพร้อม error
+- **Idempotent** — domain มีอยู่แล้วก็รันซ้ำได้ จะ set template และ nginx.conf_2 ใหม่ตามปกติ
+- **เขียน nginx.conf_2 เฉพาะเมื่อสำเร็จ** — ต้อง add domain + set proxy template สำเร็จก่อนเท่านั้นถึงจะเขียนไฟล์ ป้องกัน nginx crash จาก config ผิด level
+
 ---
 
 ## โครงสร้าง project.jsonc

@@ -83,9 +83,10 @@ def hestia_cmd(cmd, params):
 def add_web_domain(domain):
     step = f"hestia add {domain}"
     result = hestia_cmd("v-add-web-domain", [SERVER["admin_user"], domain])
-    if "already exists" in result.lower():
+    r = result.lower()
+    if "exists" in r:
         return log_entry(step, True, "มีอยู่แล้ว")
-    if "error" in result.lower():
+    if "error" in r:
         return log_entry(step, False, result)
     return log_entry(step, True, "สำเร็จ")
 
