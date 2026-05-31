@@ -45,7 +45,7 @@ def section(name):
 
 def local_run(command):
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return result.stdout.strip(), result.stderr.strip()
+    return result.stdout.strip(), result.stderr.strip(), result.returncode
 
 def local_read(path):
     try:
@@ -77,8 +77,12 @@ def hestia_cmd(cmd, params):
         r = requests.post(url, data=data, verify=False, timeout=30)
         r.raise_for_status()
         return r.text.strip()
+    except requests.exceptions.Timeout:
+        return "error: request timeout"
+    except requests.exceptions.ConnectionError as e:
+        return f"error: connection failed — {e}"
     except Exception as e:
-        return str(e)
+        return f"error: {e}"
 
 def add_web_domain(domain):
     step = f"hestia add {domain}"
@@ -106,19 +110,21 @@ def vesta_conf_path(domain):
     return f"/home/{SERVER['admin_user']}/conf/web/{domain}.nginx.conf"
 
 def nginx_precheck():
-    out, err = local_run("nginx -t 2>&1")
+    out, err, rc = local_run("nginx -t 2>&1")
     combined = out + err
-    if "syntax is ok" in combined.lower() or "test is successful" in combined.lower():
-        return None
-    return combined
+    if rc == 0:
+        return None, []
+    domains = re.findall(r"/conf/web/([^/]+)/", combined)
+    return combined, list(dict.fromkeys(domains))
 
 def nginx_test_reload():
     step = "nginx test & reload"
-    out, err = local_run("nginx -t 2>&1 && sudo systemctl restart nginx 2>&1")
-    combined = out + err
-    ok_signal = "syntax is ok" in combined.lower()
-    if "failed" in combined.lower() or ("error" in combined.lower() and not ok_signal):
-        return log_entry(step, False, combined)
+    out, err, rc = local_run("nginx -t 2>&1")
+    if rc != 0:
+        return log_entry(step, False, f"nginx -t failed: {(out + err).strip()}")
+    _, err2, rc2 = local_run("sudo systemctl reload nginx")
+    if rc2 != 0:
+        return log_entry(step, False, f"reload failed: {err2.strip()}")
     return log_entry(step, True, "reload สำเร็จ")
 
 def set_nginx_port(domain, port):
@@ -131,7 +137,7 @@ def set_nginx_port(domain, port):
         if write_err:
             return log_entry(step, False, write_err)
         return log_entry(step, True, f"port → {port}")
-    pattern = r"proxy_pass\s+http://127\.0\.0\.1:\d+;"
+    pattern = r"proxy_pass\s+http://(127\.0\.0\.1|localhost):\d+;"
     new_content = re.sub(pattern, new_line, content)
     if new_content == content and new_line not in content:
         return log_entry(step, False, "ไม่พบ proxy_pass ในไฟล์")
@@ -282,9 +288,18 @@ def main():
     else:
         domains = data.get("domains", [])
 
-    pre_err = nginx_precheck()
+    pre_err, broken_domains = nginx_precheck()
     if pre_err:
-        print(json.dumps({"ok": False, "error": f"nginx broken before start — fix first: {pre_err}"}))
+        reason = f"nginx broken before start — fix first: {pre_err}"
+        if broken_domains:
+            reason += f" | broken domains: {', '.join(broken_domains)}"
+        print(json.dumps({"ok": False, "error": reason}))
+        callback_url = data.get("callback_url_init_nginx")
+        if callback_url:
+            try:
+                requests.post(callback_url, json={"success": False, "reason": reason}, timeout=10)
+            except Exception:
+                pass
         sys.exit(1)
 
     hestia_logs = []
