@@ -18,6 +18,18 @@ SERVER = {
     "type":       os.environ.get("SERVER_TYPE", "hestia"),
 }
 
+# key = subdomain prefix (ตรงกับ KEY_MAP)
+# api keys (api, apisa, trans, ...) จัดการแยกใน process_api_domain ไม่ผ่านที่นี่
+KEY_TEMPLATE = {
+    "w":      "my_react_dupicate_page_template",
+    "w1":     "my_react_dupicate_page_template",
+    "w2":     "my_react_dupicate_page_template",
+    "se":     "my_react_dupicate_page_template",
+    "sa":     "my_react_dupicate_page_template",
+    "sell":   "my_react_dupicate_page_template",
+    "assets": "my_assets_template",
+}
+
 KEY_MAP = {
     "w":       "app",
     "w1":      "app",
@@ -62,6 +74,19 @@ def local_write(path, content):
     except Exception as e:
         return str(e)
 
+# ---- constants ----
+
+STATIC_EXT = (
+    "css,htm,html,js,mjs,json,xml,"
+    "apng,avif,bmp,cur,gif,ico,jfif,jpg,jpeg,pjp,pjpeg,png,svg,tif,tiff,webp,"
+    "aac,caf,flac,m4a,midi,mp3,ogg,opus,wav,"
+    "3gp,av1,avi,m4v,mkv,mov,mpg,mpeg,mp4,mp4v,webm,"
+    "otf,ttf,woff,woff2,"
+    "doc,docx,odf,odp,ods,odt,pdf,ppt,pptx,rtf,txt,xls,xlsx,"
+    "7z,bz2,gz,rar,tar,tgz,zip,"
+    "apk,appx,bin,dmg,exe,img,iso,jar,msi,webmanifest"
+)
+
 # ---- hestia API ----
 
 def hestia_cmd(cmd, params):
@@ -94,9 +119,16 @@ def add_web_domain(domain):
         return log_entry(step, False, result)
     return log_entry(step, True, "สำเร็จ")
 
+NEEDS_EXT = {
+    "my_react_dupicate_page_template",
+    "my_react_template",
+    "my_redirect_url_template",
+}
+
 def set_proxy_template(domain, template="my_api_template"):
     step = f"hestia template {domain}"
-    result = hestia_cmd("v-change-web-domain-proxy-tpl", [SERVER["admin_user"], domain, template, "no"])
+    ext = STATIC_EXT if template in NEEDS_EXT else "no"
+    result = hestia_cmd("v-change-web-domain-proxy-tpl", [SERVER["admin_user"], domain, template, ext, "no"])
     if "error" in result.lower():
         return log_entry(step, False, result)
     return log_entry(step, True, template)
@@ -188,6 +220,10 @@ def ensure_nginx_conf2_for_web(root_domain, web_domains, repo_path, key_map):
 
 # ---- domain processing ----
 
+def web_template(domain, root_domain):
+    prefix = domain.replace("." + root_domain, "").split(".")[0] if root_domain and domain != root_domain else ""
+    return KEY_TEMPLATE.get(prefix, "my_react_dupicate_page_template")
+
 def process_web_domains(web_list, root_domain, repo_path, key_map, hestia_logs, nginx_logs):
     if isinstance(web_list, str):
         web_list = [web_list]
@@ -197,7 +233,7 @@ def process_web_domains(web_list, root_domain, repo_path, key_map, hestia_logs, 
         if not hestia_logs[-1]["ok"]:
             continue
         if not is_vesta():
-            hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
+            hestia_logs.append(set_proxy_template(d, web_template(d, root_domain)))
             if not hestia_logs[-1]["ok"]:
                 continue
         ok_domains.append(d)
@@ -218,12 +254,13 @@ def process_api_domain(value, hestia_logs, nginx_logs):
 def process_react_domain(key, value, repo_path, key_map, hestia_logs, nginx_logs):
     domains_list = value if isinstance(value, list) else [value]
     fs_path = repo_path.get(key_map.get(key, key), "")
+    template = KEY_TEMPLATE.get(key, "my_react_dupicate_page_template")
     for d in domains_list:
         hestia_logs.append(add_web_domain(d))
         if not hestia_logs[-1]["ok"]:
             continue
         if not is_vesta():
-            hestia_logs.append(set_proxy_template(d, "my_react_dupicate_page_template"))
+            hestia_logs.append(set_proxy_template(d, template))
             if not hestia_logs[-1]["ok"]:
                 continue
         if fs_path and not is_vesta():
