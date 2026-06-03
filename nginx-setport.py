@@ -150,14 +150,14 @@ def nginx_precheck():
     return combined, list(dict.fromkeys(domains))
 
 def nginx_test_reload():
-    step = "nginx test & reload"
+    step = "nginx test & restart"
     out, err, rc = local_run("nginx -t 2>&1")
     if rc != 0:
         return log_entry(step, False, f"nginx -t failed: {(out + err).strip()}")
-    _, err2, rc2 = local_run("sudo systemctl reload nginx")
+    _, err2, rc2 = local_run("sudo systemctl restart nginx")
     if rc2 != 0:
-        return log_entry(step, False, f"reload failed: {err2.strip()}")
-    return log_entry(step, True, "reload สำเร็จ")
+        return log_entry(step, False, f"restart failed: {err2.strip()}")
+    return log_entry(step, True, "restart สำเร็จ")
 
 def set_nginx_port(domain, port):
     step = f"nginx port {domain}"
